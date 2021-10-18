@@ -45,32 +45,27 @@ func CopyFile(src, dst string) error {
 	return fd.Close()
 }
 
-type checkedError struct {
-	err error
-}
+func ErrChecker(f func(error)) (chkerr func(error), deferedCall func()) {
+	errFound := false
 
-func (err *checkedError) Error() string {
-	return err.err.Error()
-}
-
-func (err *checkedError) Unwrap() error {
-	return err.err
-}
-
-func CheckErr(err error) {
-	if err != nil {
-		panic(&checkedError{err})
+	chkerr = func(err error) {
+		if err != nil {
+			errFound = true
+			panic(err)
+		}
 	}
-}
 
-func HandleCheckedError(f func(error)) {
-	err := recover()
-	if err == nil {
-		return
+	deferedCall = func() {
+		if errFound {
+			v := recover()
+			err, ok := v.(error)
+			if ok {
+			f(err)	
+			} else {
+				panic(v)
+			}
+		}
 	}
-	err2, ok := err.(checkedError)
-	if !ok {
-		panic(err)
-	}
-	f(err2.err)
+
+	return
 }
